@@ -1,10 +1,10 @@
-# DiffusionRig-Emo(v1)
+# DiffusionRig-Emo(v2)
 
-DiffusionRigの顔の物理的条件を規定するDECAをEMOCAに置き換えることで、より現実的な表情変換を可能にしたプロジェクトです。
+DiffusionRig-Emo(v1)の顔の物理的条件を規定するDECAをEMOCAに置き換えることで、より現実的な表情変換を可能にしたプロジェクトです。
 
 *Shotaro Ishiguro*
 
-![Image 1](https://github.com/ShotaroIshiguro/DiffusionRig_EMO-test-/blob/main/architecture.png)
+![Image 1](https://github.com/ShotaroIshiguro/2025Report/blob/main/architecture.png)
 
 ## セットアップと準備
 

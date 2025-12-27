@@ -1,6 +1,6 @@
 # DiffusionRig-Emo(v1)
 
-DiffusionRigの顔の物理的条件を規定するDECAをEMOCAに置き換えることで、より現実的な表情変換を可能にしたプロジェクトです。
+DiffusionRigの顔の物理的条件を規定するDECAをEMOCAに置き換え、感情表現モデルの学習に特化したAffectNetを学習用データセットに採用することで、より現実的な表情変換を可能にしたモデル。
 
 *Shotaro Ishiguro*
 
