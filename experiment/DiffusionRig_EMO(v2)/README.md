@@ -1,6 +1,6 @@
 # DiffusionRig-Emo(v2)
 
-DiffusionRig-Emo(v1)の顔の物理的条件を規定するDECAをEMOCAに置き換えることで、より現実的な表情変換を可能にしたプロジェクトです。
+DiffusionRig-Emo(v1)に、DECA及びEMOCAのパラメーターを拡散モデルに直接条件付けする機構を追加することで、画像生成開始時に失われる特徴量を減少させたモデル。
 
 *Shotaro Ishiguro*
 
@@ -65,16 +65,20 @@ bash download_assets.sh
 ```
 
 ### Stage1のデータセット
-FFHQとAffectNetの画像から3D顔特徴を事前に抽出します。
+AffectNetの画像から3D顔特徴を事前に抽出します。
 ```
 cd DiffusionRig_main
-# FFHQ(DECA)
-python scripts/create_data.py --data_dir FFHQ/FFHQ_images \
-    --output_dir ffhq256_deca.lmdb --image_size 256 --use_meanshape False \
+# DECA
+python scripts/create_dataV2.py \
+    --data_dir AffectNet/train_set/images \
+    --output_dir affectnet256_deca.lmdb --image_size 256 \
+    --use_meanshape False \
     --use_model DECA
-# FFHQ(EMOCA)
-python scripts/create_data.py --data_dir FFHQ/FFHQ_images \
-    --output_dir ffhq256_emoca.lmdb --image_size 256 --use_meanshape False \
+# EMOCA
+python scripts/create_dataV2.py \
+    --data_dir AffectNet/train_set/images \
+    --output_dir affectnet256_emoca.lmdb --image_size 256 \
+    --use_meanshape False \
     --use_model EMOCA
 ```
 
@@ -86,17 +90,24 @@ conda env create -n DRE_align python=3.9 --file environment_DRE_align.yml
 conda activate DRE_align
 
 python scripts/align.py -i PATH_TO_PERSONAL_PHOTO_ALBUM \
-    -o PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM -s 256
+    -o PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
+    -s 256
 
 conda deactivate DER_align
 conda activate DRE
 
 # Personal_Album(DECA)
-python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
-    --output_dir NAME_MODEL.lmdb --image_size 256 --use_meanshape True --use_model DECA
+python scripts/create_dataV2.py \
+    --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
+    --output_dir NAME_MODEL.lmdb --image_size 256 \
+    --use_meanshape True \
+    --use_model DECA
 # Personal_Album(EMOCA)
-python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
-    --output_dir NAME_MODEL.lmdb --image_size 256 --use_meanshape True --use_model EMOCA
+python scripts/create_dataV2.py \
+    --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
+    --output_dir NAME_MODEL.lmdb --image_size 256 \
+    --use_meanshape True \
+    --use_model EMOCA
 ```
 
 ## Training
@@ -109,21 +120,47 @@ python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
 - 効率的なデータ管理: レンダリングされた画像や物理バッファ（形状データなど）を高速に処理するため、LMDB 形式のファイルを使用します。
 - 分散学習: mpiexec を利用した複数GPUなどによる分散学習が可能です。
 - 学習の再開: 途中で止まった学習を再開したい場合は、引数に `--resume_checkpoint` を追加してください。
+- `shape_dim`: 拡散モデルに直接注入する形状パラメータの次元数
+- `identity_dim`: 拡散モデルに直接注入するアイデンティティパラメータの次元数
 ```
-python scripts/train.py --latent_dim 64 --encoder_type resnet18  \
-    --log_dir log/stage1/emoca_FFHQ_resnet18_batch16 --data_dir ffhq256_emoca.lmdb \
-    --lr 1e-4 --p2_weight True --image_size 256 --batch_size 16 --max_steps 50000 \
-    --num_workers 8 --save_interval 5000 --stage 1
+python scripts/trainV2.py \
+    --latent_dim 64 \
+    --encoder_type RESNET_18_OR_50 \
+    --log_dir log/stage1/[PATH_TO_STAGE1_LOG] \
+    --data_dir PATH_TO_STAGE1_DATASET_LMDB \
+    --lr 1e-4 \
+    --p2_weight True \
+    --image_size 256 \
+    --batch_size 16 \
+    --max_steps 50000 \
+    --num_workers 8 \
+    --save_interval 5000 \
+    --shape_dim 100 \
+    --identity_dim 150 \
+    --stage 1
 ```
 
 ### ステージ2：パーソナライズされた事前学習 (Learning Personalized Priors)
 少数の個人用アルバム画像を用いて、特定の人物の容姿を詳細に再現するためのファインチューニングを行います。
+- `shape_dim`: 拡散モデルに直接注入する形状パラメータの次元数
+- `identity_dim`: 拡散モデルに直接注入するアイデンティティパラメータの次元数
 ```
-python scripts/train.py --latent_dim 64 --encoder_type resnet18 \
-    --log_dir log/stage2 --resume_checkpoint log/stage1/[MODEL_NAME].pt \
-    --data_dir NAME_MODEL.lmdb --lr 1e-5 \
-    --p2_weight True --image_size 256 --batch_size 4 --max_steps 5000 \
-    --num_workers 8 --save_interval 5000 --stage 2
+python scripts/trainV2.py \
+    --latent_dim 64 \
+    --encoder_type RESNET_18_OR_50 \
+    --log_dir log/stage2 \
+    --resume_checkpoint log/stage1/[MODEL_NAME].pt \
+    --data_dir NAME_MODEL.lmdb \
+    --lr 1e-5 \
+    --p2_weight True \
+    --image_size 256 \
+    --batch_size 4 \
+    --max_steps 5000 \
+    --num_workers 8 \
+    --save_interval 5000 \
+    --shape_dim 100 \
+    --identity_dim 150 \
+    --stage 2
 ```
 
 ## Inference
@@ -132,44 +169,19 @@ python scripts/train.py --latent_dim 64 --encoder_type resnet18 \
 - ソース画像の制限: ソース画像は必ずステージ2の学習で使用した個人アルバムから選択してください。
 - 複数処理: `--source` にディレクトリを指定することで、複数のソース画像をまとめて処理できます。
 - モデルの混在: ターゲット画像とソース画像の物理バッファを、それぞれ `DECA` または `EMOCA` のどちらで取得するか個別に指定可能です。
-- ResNet設定に関する注意点:
-    - 推論コードには、`ResNet18`か`ResNet50`かを自動で切り替える機能がまだ実装されていません。
-    - ResNet18で学習したモデルを使用する場合は、`utils/script_util.py` の `def model_and_diffusion_defaults()` 内にある、56行目と57行目の変数 を使用するResNetの種類に合わせて手動で書き換える必要があります。
 
 ```
-python scripts/inference.py --source jisaku_training/Hitoshi_aligned/ \
-   --modes exp --model_path log/stage2/stage2_model005000_Hitoshi.pt \
-   --timestep_respacing ddim20 \
-   --meanshape personal_deca_Hitoshi.lmdb/mean_shape.pkl \
-   --target jisaku_training/obama_aligned/obama_12.png \
-   --output_dir output_dir/target_smile_OBAMA12/targetEMOCA_sourseDECA \
-   --target_model EMOCA \
-   --source_model DECA
+python scripts/inference_[18_OR_50]_V2.py \
+    --source PATH_TO_SOURCE_IMAGES \
+    --modes exp \
+    --model_path [PATH_TO_PERSONAL_MODEL].pt \
+    --timestep_respacing ddpm \
+    --meanshape [PATH_TO_PERSONAL_DATASET].lmdb/mean_shape.pkl \
+    --target PATH_TO_TARGET_IMAGE \
+    --output_dir PATH_TO_OUTPUT_DIR \
+    --target_model DECA_OR_EMOCA \
+    --source_model DECA_OR_EMOCA
 ```
-
-## EMOCAを用いた3D顔形状の取得
-`gdl_apps/EMOCA/demos/test_emoca_on_images.py` を実行することで、2D画像から以下のデータを取得できます。
-- 3D顔モデル（Mesh）
-- 潜在コード（Latent Code）
-- レンダリング結果
-
-```
-python demos/test_emoca_on_images.py --input_folder demos/test_images \
-    --output_folder demos/output --model_name EMOCA_v2_lr_mse_20 \
-    --save_mesh True --save_codes True
-```
-
-## Training以降をまとめて実行したい場合(AffectNetのみ対応)
-### stage1の学習
-- DECA or EMOCA, ResNet18 or ResNet50の4パターンに対応  
-```./stage1_scripts_run.sh```
-### stage2の学習
-- 個人アルバムを作成してから実行
-- `people`変数に人物名を入れる  
-```./stage2_run_all.sh```
-### 推論
-- 1枚のターゲット画像に対して`ソース画像人物数×16(モデル数)×ソース人物パターン数`の画像が生成
-```./stage3_shapnessinference.sh```
 
 
 ## 参考文献

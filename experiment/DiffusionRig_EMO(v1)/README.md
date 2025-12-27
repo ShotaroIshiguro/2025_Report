@@ -4,7 +4,7 @@ DiffusionRigの顔の物理的条件を規定するDECAをEMOCAに置き換え�
 
 *Shotaro Ishiguro*
 
-![Image 1](https://github.com/ShotaroIshiguro/DiffusionRig_EMO-test-/blob/main/architecture.png)
+![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/ba60acb92d5c2b7f4504e783fec2d2c71de00cab/experiment/DiffusionRig_EMO(v1)/architecture.png)
 
 ## セットアップと準備
 
@@ -70,11 +70,25 @@ FFHQとAffectNetの画像から3D顔特徴を事前に抽出します。
 cd DiffusionRig_main
 # FFHQ(DECA)
 python scripts/create_data.py --data_dir FFHQ/FFHQ_images \
-    --output_dir ffhq256_deca.lmdb --image_size 256 --use_meanshape False \
+    --output_dir ffhq256_deca.lmdb --image_size 256 \
+    --use_meanshape False \
     --use_model DECA
 # FFHQ(EMOCA)
 python scripts/create_data.py --data_dir FFHQ/FFHQ_images \
-    --output_dir ffhq256_emoca.lmdb --image_size 256 --use_meanshape False \
+    --output_dir ffhq256_emoca.lmdb --image_size 256 \
+    --use_meanshape False \
+    --use_model EMOCA
+# AffectNet(DECA)
+python scripts/create_data.py \
+    --data_dir AffectNet/train_set/images \
+    --output_dir affectnet256_deca.lmdb --image_size 256 \
+    --use_meanshape False \
+    --use_model DECA
+# AffectNet(EMOCA)
+python scripts/create_data.py \
+    --data_dir AffectNet/train_set/images \
+    --output_dir affectnet256_emoca.lmdb --image_size 256 \
+    --use_meanshape False \
     --use_model EMOCA
 ```
 
@@ -92,11 +106,17 @@ conda deactivate DER_align
 conda activate DRE
 
 # Personal_Album(DECA)
-python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
-    --output_dir NAME_MODEL.lmdb --image_size 256 --use_meanshape True --use_model DECA
+python scripts/create_data.py \
+    --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
+    --output_dir NAME_MODEL.lmdb --image_size 256 \
+    --use_meanshape True \
+    --use_model DECA
 # Personal_Album(EMOCA)
-python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
-    --output_dir NAME_MODEL.lmdb --image_size 256 --use_meanshape True --use_model EMOCA
+python scripts/create_data.py \
+    --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
+    --output_dir NAME_MODEL.lmdb --image_size 256 \
+    --use_meanshape True \
+    --use_model EMOCA
 ```
 
 ## Training
@@ -110,20 +130,38 @@ python scripts/create_data.py --data_dir PATH_TO_PERSONAL_ALIGNED_PHOTO_ALBUM \
 - 分散学習: mpiexec を利用した複数GPUなどによる分散学習が可能です。
 - 学習の再開: 途中で止まった学習を再開したい場合は、引数に `--resume_checkpoint` を追加してください。
 ```
-python scripts/train.py --latent_dim 64 --encoder_type resnet18  \
-    --log_dir log/stage1/emoca_FFHQ_resnet18_batch16 --data_dir ffhq256_emoca.lmdb \
-    --lr 1e-4 --p2_weight True --image_size 256 --batch_size 16 --max_steps 50000 \
-    --num_workers 8 --save_interval 5000 --stage 1
+python scripts/train.py \
+    --latent_dim 64 \
+    --encoder_type resnet18  \
+    --log_dir log/stage1/emoca_Affectnet_resnet18_batch16 \
+    --data_dir affectnet_256_emoca.lmdb \
+    --lr 1e-4 / 
+    --p2_weight True \
+    --image_size 256 \
+    --batch_size 16 \
+    --max_steps 50000 \
+    --num_workers 8 \
+    --save_interval 5000 \
+    --stage 1
 ```
 
 ### ステージ2：パーソナライズされた事前学習 (Learning Personalized Priors)
 少数の個人用アルバム画像を用いて、特定の人物の容姿を詳細に再現するためのファインチューニングを行います。
 ```
-python scripts/train.py --latent_dim 64 --encoder_type resnet18 \
-    --log_dir log/stage2 --resume_checkpoint log/stage1/[MODEL_NAME].pt \
-    --data_dir NAME_MODEL.lmdb --lr 1e-5 \
-    --p2_weight True --image_size 256 --batch_size 4 --max_steps 5000 \
-    --num_workers 8 --save_interval 5000 --stage 2
+python scripts/train.py \
+    --latent_dim 64 \
+    --encoder_type RESNET_18_OR_50 \
+    --log_dir log/stage2 \
+    --resume_checkpoint log/stage1/[MODEL_NAME].pt \
+    --data_dir NAME_MODEL.lmdb \
+    --lr 1e-5 \
+    --p2_weight True \
+    --image_size 256 \
+    --batch_size 4 \
+    --max_steps 5000 \
+    --num_workers 8 \
+    --save_interval 5000 \
+    --stage 2
 ```
 
 ## Inference
@@ -134,17 +172,19 @@ python scripts/train.py --latent_dim 64 --encoder_type resnet18 \
 - モデルの混在: ターゲット画像とソース画像の物理バッファを、それぞれ `DECA` または `EMOCA` のどちらで取得するか個別に指定可能です。
 - ResNet設定に関する注意点:
     - 推論コードには、`ResNet18`か`ResNet50`かを自動で切り替える機能がまだ実装されていません。
-    - ResNet18で学習したモデルを使用する場合は、`utils/script_util.py` の `def model_and_diffusion_defaults()` 内にある、56行目と57行目の変数 を使用するResNetの種類に合わせて手動で書き換える必要があります。
+    - ResNet18で学習したモデルを使用する場合は、`utils/script_util.py` の `def model_and_diffusion_defaults()` 内にある、56行目と57行目の変数 を使用するResNetの種類に合わせて手動で書き換える必要があります(※Emo(V2では解決済み))。
 
 ```
-python scripts/inference.py --source jisaku_training/Hitoshi_aligned/ \
-   --modes exp --model_path log/stage2/stage2_model005000_Hitoshi.pt \
-   --timestep_respacing ddim20 \
-   --meanshape personal_deca_Hitoshi.lmdb/mean_shape.pkl \
-   --target jisaku_training/obama_aligned/obama_12.png \
-   --output_dir output_dir/target_smile_OBAMA12/targetEMOCA_sourseDECA \
-   --target_model EMOCA \
-   --source_model DECA
+python scripts/inference_[18_OR_50].py \
+    --source PATH_TO_SOURCE_IMAGES \
+    --modes exp \
+    --model_path [PATH_TO_PERSONAL_MODEL].pt \
+    --timestep_respacing ddpm \
+    --meanshape [PATH_TO_PERSONAL_DATASET].lmdb/mean_shape.pkl \
+    --target PATH_TO_TARGET_IMAGE \
+    --output_dir PATH_TO_OUTPUT_DIR \
+    --target_model DECA_OR_EMOCA \
+    --source_model DECA_OR_EMOCA
 ```
 
 ## EMOCAを用いた3D顔形状の取得
