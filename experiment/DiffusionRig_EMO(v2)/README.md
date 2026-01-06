@@ -4,7 +4,9 @@ DiffusionRig-Emo(v1)に、DECA及びEMOCAのパラメーターを拡散モデル
 
 *Shotaro Ishiguro*
 
-![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/f8596a0a45a15b4d7ba4cdbe18123c044fdee8b8/experiment/DiffusionRig_EMO(v2)/architecture.png)
+![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/ede7c8b61d47686f11ea833d1f04971ea55a9ea4/experiment/DiffusionRig_EMO(v1)/architecture01.png)
+
+![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/7b0a60931fcb480904d728d3f6bc4edb859a34b5/experiment/DiffusionRig_EMO(v1)/architecture02.png)
 
 ## セットアップと準備
 
