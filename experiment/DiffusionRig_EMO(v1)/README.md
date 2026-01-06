@@ -4,7 +4,7 @@ DiffusionRigの顔の物理的条件を規定するDECAをEMOCAに置き換え�
 
 *Shotaro Ishiguro*
 
-![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/ba60acb92d5c2b7f4504e783fec2d2c71de00cab/experiment/DiffusionRig_EMO(v1)/architecture01.png)
+![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/7a094e1218d330179afd67917096e7e9d74899ba/experiment/DiffusionRig_EMO(v1)/architecture01.png)
 
 ![Image 1](https://github.com/ShotaroIshiguro/2025_Report/blob/ba60acb92d5c2b7f4504e783fec2d2c71de00cab/experiment/DiffusionRig_EMO(v1)/architecture02.png)
 
